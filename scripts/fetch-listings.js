@@ -16,16 +16,16 @@ async function scrapeListing(page, pageNum) {
     await page.goto(url, { waitUntil: 'networkidle' });
     
     // 等待房屋列表加載
-    await page.waitForSelector('a[href*="/listings/"]', { timeout: 10000 });
+    await page.waitForSelector('a[href*="/house/"]', { timeout: 10000 });
     
     const listings = await page.evaluate(() => {
       const items = [];
-      const elements = document.querySelectorAll('a[href*="/listings/"]');
+      const elements = document.querySelectorAll('a[href*="/house/"]');
       
       elements.forEach((el) => {
         try {
           const link = el.getAttribute('href');
-          if (!link || !link.includes('/listings/')) return;
+          if (!link || !link.includes('/house/')) return;
           
           // 提取房屋信息
           const titleEl = el.textContent || '';
@@ -34,7 +34,7 @@ async function scrapeListing(page, pageNum) {
           const roomEl = el.parentElement?.querySelector('.room')?.textContent || 'N/A';
           
           items.push({
-            id: link.split('/listings/')[1]?.split('/')[0] || Date.now() + Math.random(),
+            id: link.split('/house/')[1]?.split('/')[0] || Date.now() + Math.random(),
             url: 'https://buy.houseprice.tw' + link,
             title: titleEl.trim(),
             price: priceEl.trim(),
