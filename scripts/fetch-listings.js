@@ -70,7 +70,7 @@ async function fetchAllListings() {
     let pageNum = 1;
     let hasNextPage = true;
     
-    while (hasNextPage && pageNum <= 50) { // 限制最多50頁
+    while (hasNextPage && pageNum <= 1) { // 限制最多50頁
       const listings = await scrapeListing(page, pageNum);
       
       if (listings.length === 0) {
