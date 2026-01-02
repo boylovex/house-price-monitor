@@ -33,7 +33,7 @@ jobs:
         run: node scripts/check-changes.js
         continue-on-error: true
 
-- name: 📄 更新 Google Sheet
+  - name: 📄 更新 Google Sheet
       run: node scripts/update-google-sheets.js
       env:
         GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
