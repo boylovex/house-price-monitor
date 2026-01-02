@@ -1,198 +1,116 @@
-const axios = require('axios');
-const cheerio = require('cheerio');
+const playwright = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-// 基础 URL
-const BASE_URL = 'https://buy.houseprice.tw/list/%E6%A1%83%E5%9C%92%E5%B8%82_city/%E4%B8%AD%E5%A3%A2%E5%8D%80-%E5%A4%A7%E5%9C%92%E5%8D%80-%E6%A1%83%E5%9C%92%E5%8D%80_zip/%E4%BD%8F%E5%AE%85_use/%E9%9B%BB%E6%A2%AF%E5%A4%A7%E6%A8%93_type/2-_room/5-_floor/-1200_price/20-_age/nearmrt_filter/publish-desc_sort/?p=';
-
-// 伪装 User Agent
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-};
+// 定義 URL
+const BASE_URL = 'https://buy.houseprice.tw/list/%E6%A1%83%E5%9C%92%E5%B8%82_city/%E4%B8%AD%E5%A3%A2%E5%8D%80-%E5%A4%A7%E5%9C%92%E5%8D%80-%E6%A1%83%E5%9C%92%E5%8D%80_zip/%E4%BD%8F%E5%AE%85_use/%E9%9B%BB%E6%A2%AF%E5%A4%A7%E6%A8%93_type/2-_room/5-_floor/-1200_price/20-_age/nearmrt_filter/publish-desc_sort/';
 
 /**
- * 从单个页面提取房屋信息
+ * 從單個頁面提取房屋信息
  */
-async function fetchPage(pageNum) {
+async function scrapeListing(page, pageNum) {
   try {
-    const url = BASE_URL + pageNum;
-    console.log(`提取第 ${pageNum} 页...`);
+    const url = BASE_URL + '?p=' + pageNum;
+    console.log(`抓取第 ${pageNum} 頁...`);
     
-    const response = await axios.get(url, { headers: HEADERS, timeout: 10000 });
-    const $ = cheerio.load(response.data);
+    await page.goto(url, { waitUntil: 'networkidle' });
     
-    const listings = [];
+    // 等待房屋列表加載
+    await page.waitForSelector('a[href*="/listings/"]', { timeout: 10000 });
     
-    // 提取房屋信息 - 获取所有房屋卡片容器
-    // 网站使用 Vue 渲染，寻找包含房屋信息的 div 容器
-    $('a[href*="/house/"]').each((i, el) => {
-      try {
-        const $item = $(el);
-        const href = $item.attr('href');
-        
-        // 跳过非房屋链接
-        if (!href || !href.includes('/house/')) return;
-        
-        // 获取标题和价格信息
-        const titleEl = $item.find('h2, h3, .title');
-        const title = titleEl.text().trim();
-        
-        // 获取价格 (通常在右侧)
-        const priceText = $item.text();
-        const priceMatch = priceText.match(/(\d+,?\d*)\s*萬/);
-        const price = priceMatch ? priceMatch[1] : 'N/A';
-        
-        // 获取面积和位置
-        const detailMatch = priceText.match(/([\d.]+)坪/);
-        const area = detailMatch ? detailMatch[1] : 'N/A';
-        
-        if (title && href) {
-          // 使用链接的哈希值作为唯一ID
-          const id = 'listing_' + Math.abs(href.split('/')[3] || Math.random()).toString(36);
+    const listings = await page.evaluate(() => {
+      const items = [];
+      const elements = document.querySelectorAll('a[href*="/listings/"]');
+      
+      elements.forEach((el) => {
+        try {
+          const link = el.getAttribute('href');
+          if (!link || !link.includes('/listings/')) return;
           
-          listings.push({
-            id,
-            title: title.substring(0, 100),
-            price,
-            area,
-            link: href.startsWith('http') ? href : 'https://buy.houseprice.tw' + href,
+          // 提取房屋信息
+          const titleEl = el.textContent || '';
+          const priceEl = el.parentElement?.querySelector('.price')?.textContent || 'N/A';
+          const areaEl = el.parentElement?.querySelector('.area')?.textContent || 'N/A';
+          const roomEl = el.parentElement?.querySelector('.room')?.textContent || 'N/A';
+          
+          items.push({
+            id: link.split('/listings/')[1]?.split('/')[0] || Date.now() + Math.random(),
+            url: 'https://buy.houseprice.tw' + link,
+            title: titleEl.trim(),
+            price: priceEl.trim(),
+            area: areaEl.trim(),
+            room: roomEl.trim(),
             scrapedAt: new Date().toISOString()
           });
+        } catch (e) {
+          console.error('解析房屋失敗:', e.message);
         }
-      } catch (err) {
-        // 跳过错误的项目
-      }
+      });
+      
+      return items;
     });
     
     return listings;
   } catch (error) {
-    console.error(`页面 ${pageNum} 提取失败: ${error.message}`);
+    console.error(`抓取第 ${pageNum} 頁失敗:`, error.message);
     return [];
   }
 }
 
 /**
- * 提取所有页面的数据
+ * 抓取所有分頁的房屋信息
  */
-async function fetchAllListings(maxPages = 13) {
-  console.log(`开始提取所有页面（最多 ${maxPages} 页）...`);
-  
-  const allListings = [];
-  
-  for (let page = 1; page <= maxPages; page++) {
-    const pageListings = await fetchPage(page);
-    
-    if (pageListings.length === 0) {
-      console.log(`第 ${page} 页没有数据，结束提取`);
-      break;
-    }
-    
-    allListings.push(...pageListings);
-    console.log(`第 ${page} 页: 提取 ${pageListings.length} 个房屋对象`);
-    
-    // 为了不超载源、每个页面之间等待 1 秒
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-  
-  return allListings;
-}
-
-/**
- * 对比新旧数据并找出新增/丢失的房屋对象
- */
-function compareListings(currentListings, previousListings) {
-  const currentIds = new Set(currentListings.map(l => l.id));
-  const previousIds = new Set(previousListings.map(l => l.id));
-  
-  const newListings = currentListings.filter(l => !previousIds.has(l.id));
-  const deletedListings = previousListings.filter(l => !currentIds.has(l.id));
-  const priceChanges = [];
-  
-  // 检查价格改变
-  currentListings.forEach(current => {
-    const previous = previousListings.find(p => p.id === current.id);
-    if (previous && current.price !== previous.price) {
-      priceChanges.push({
-        id: current.id,
-        title: current.title,
-        oldPrice: previous.price,
-        newPrice: current.price
-      });
-    }
-  });
-  
-  return {
-    newCount: newListings.length,
-    deletedCount: deletedListings.length,
-    priceChangeCount: priceChanges.length,
-    newListings,
-    deletedListings,
-    priceChanges
-  };
-}
-
-/**
- * 主函数
- */
-async function main() {
+async function fetchAllListings() {
+  let browser;
   try {
-    const dataDir = path.join(__dirname, '../data');
-    const currentFile = path.join(dataDir, 'current-listings.json');
-    const previousFile = path.join(dataDir, 'previous-listings.json');
-    const changesFile = path.join(dataDir, 'changes.json');
+    browser = await playwright.chromium.launch({ headless: true });
+    const page = await browser.newPage();
     
-    // 确保数据目录存在
+    const allListings = [];
+    let pageNum = 1;
+    let hasNextPage = true;
+    
+    while (hasNextPage && pageNum <= 50) { // 限制最多50頁
+      const listings = await scrapeListing(page, pageNum);
+      
+      if (listings.length === 0) {
+        hasNextPage = false;
+      } else {
+        allListings.push(...listings);
+        pageNum++;
+        
+        // 延遲以避免過度頻繁的請求
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    await browser.close();
+    return allListings;
+  } catch (error) {
+    console.error('抓取列表失敗:', error);
+    if (browser) await browser.close();
+    throw error;
+  }
+}
+
+// 主程序
+if (require.main === module) {
+  fetchAllListings().then((listings) => {
+    console.log(`\n共抓取 ${listings.length} 個房屋`);
+    
+    // 將數據保存到 data/current-listings.json
+    const dataDir = path.join(__dirname, '../data');
     if (!fs.existsSync(dataDir)) {
       fs.mkdirSync(dataDir, { recursive: true });
-      console.log(`创建数据目录: ${dataDir}`);
     }
     
-    // 提取所有页面的数据
-    const currentListings = await fetchAllListings();
-    console.log(`\n总计提取: ${currentListings.length} 个房屋对象`);
-    
-    // 保存当前数据
-    const snapshot = {
-      timestamp: new Date().toISOString(),
-      totalCount: currentListings.length,
-      listings: currentListings
-    };
-    
-    fs.writeFileSync(currentFile, JSON.stringify(snapshot, null, 2), 'utf-8');
-    console.log(`\n当前快照已保存: ${currentFile}`);
-    
-    // 比较旧数据（如果有）
-    if (fs.existsSync(previousFile)) {
-      const previousSnapshot = JSON.parse(fs.readFileSync(previousFile, 'utf-8'));
-      const previousListings = previousSnapshot.listings || [];
-      
-      const changes = compareListings(currentListings, previousListings);
-      
-      fs.writeFileSync(changesFile, JSON.stringify(changes, null, 2), 'utf-8');
-      
-      console.log('\n=== 变化汇报 ===');
-      console.log(`新增房屋: ${changes.newCount}`);
-      console.log(`丢失房屋: ${changes.deletedCount}`);
-      console.log(`价格改变: ${changes.priceChangeCount}`);
-      
-      if (changes.newListings.length > 0) {
-        console.log('\n新增房屋:');
-        changes.newListings.slice(0, 5).forEach(l => {
-          console.log(` - ${l.title} | ${l.price}`);
-        });
-      }
-    } else {
-      console.log('\n第一次运行，无旧数据比较');
-    }
-    
-    // 保存当前数据作为下一次的旧数据
-    fs.copyFileSync(currentFile, previousFile);
-    console.log('\n当前数据已保存为下一次比较基准');
-  } catch (error) {
-    console.error('错误:', error);
+    const outputPath = path.join(dataDir, 'current-listings.json');
+    fs.writeFileSync(outputPath, JSON.stringify(listings, null, 2));
+    console.log(`數據已保存到 ${outputPath}`);
+  }).catch((error) => {
+    console.error('程序出錯:', error);
     process.exit(1);
-  }
+  });
 }
 
-main();
+module.exports = { fetchAllListings };
