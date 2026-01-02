@@ -16,7 +16,7 @@ async function scrapeListing(page, pageNum) {
     await page.goto(url, { waitUntil: 'networkidle' });
     
     // 等待房屋列表加載
-    await page.waitForSelector('a[href*="/house/"]', { timeout: 10000 });
+    await page.waitForSelector('a[href*="/house/"]', { timeout: 30000 });
     
     const listings = await page.evaluate(() => {
       const items = [];
