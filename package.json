@@ -1,0 +1,23 @@
+{
+  "name": "house-price-monitor",
+  "version": "1.0.0",
+  "description": "GitHub Actions 自动化监控戺院实价登录系统",
+  "main": "scripts/fetch-listings.js",
+  "scripts": {
+    "fetch": "node scripts/fetch-listings.js",
+    "check": "node scripts/check-changes.js"
+  },
+  "keywords": [
+    "house",
+    "real-estate",
+    "monitoring",
+    "taiwan"
+  ],
+  "author": "boylovex",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12"
+  },
+  "devDependencies": {}
+}
