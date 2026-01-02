@@ -17,7 +17,8 @@
   "author": "boylovex",
   "license": "MIT",
   "dependencies": {
-    "playwright": "^1.44.0"
+    "playwright": "^1.44.0",
+    "googleapis": "^118.0.0"
   },
   "devDependencies": {}
 }
