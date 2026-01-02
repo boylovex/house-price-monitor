@@ -39,7 +39,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add data/
           git commit -m "🤖 更新戺阫数据快照 - $(date +%Y-%m-%d\\ %H:%M:%S)" || echo "无新变化"
-            git push "https://${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
-                    env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                      
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
