@@ -33,10 +33,9 @@ jobs:
         run: node scripts/check-changes.js
         continue-on-error: true
 
-      - name: 📄 提交数据
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add data/
-          git commit -m "🤖 更新戺阫数据快照 - $(date +%Y-%m-%d\\ %H:%M:%S)" || echo "无新变化"
-        continue-on-error: true
+- name: 📄 更新 Google Sheet
+      run: node scripts/update-google-sheets.js
+      env:
+        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+        GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
+      continue-on-error: true
