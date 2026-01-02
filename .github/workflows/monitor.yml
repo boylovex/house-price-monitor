@@ -1,0 +1,44 @@
+name: 戺院网页监控
+
+on:
+  schedule:
+    # 每天上午6点执行 (UTC+8 台湾时间)
+    - cron: '0 22 * * *'  # UTC是22:00，也就是台湾时间09:00
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📅 拉取仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: 🔧 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: 📆 安装依赖
+        run: |
+          npm install axios cheerio
+
+      - name: 🖾️ 粗取数据
+        run: node scripts/fetch-listings.js
+        continue-on-error: true
+
+      - name: 🔍 检查变化
+        id: check
+        run: node scripts/check-changes.js
+        continue-on-error: true
+
+      - name: 📄 提交数据
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/
+          git commit -m "🤖 更新戺阫数据快照 - $(date +%Y-%m-%d\\ %H:%M:%S)" || echo "无新变化"
+          git push
+        continue-on-error: true
