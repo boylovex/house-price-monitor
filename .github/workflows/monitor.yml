@@ -1,40 +1,32 @@
-name: 戺院网页监控
-
+name: Monitor House Prices
 on:
-   schedule:
-        - cron: '0 22 * * *'  # UTC是22:00，也就是台湾时间09:00
-     workflow_dispatch:  # 允许手动触发
-
+  schedule:
+    - cron: '0 22 * * *'
+  workflow_dispatch:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: 📅 拉取仓库
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 10
-
-      - name: 🔧 设置 Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
-      - name: 📆 安装依赖
-        run: |
-          npm install && npx playwright install chromium
-      - name: 🖾️ 粗取数据
+      - name: Install dependencies
+        run: npm install && npx playwright install chromium
+      - name: Fetch listings
         run: node scripts/fetch-listings.js
         continue-on-error: true
-
-      - name: 🔍 检查变化
+      - name: Check changes
         id: check
         run: node scripts/check-changes.js
         continue-on-error: true
-
-  - name: 📄 更新 Google Sheet
-      run: node scripts/update-google-sheets.js
-      env:
-        GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
-        GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
-      continue-on-error: true
+      - name: Update Google Sheets
+        run: node scripts/update-google-sheets.js
+        env:
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
+        continue-on-error: true
