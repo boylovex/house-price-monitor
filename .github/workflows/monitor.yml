@@ -2,8 +2,7 @@ name: 戺院网页监控
 
 on:
   schedule:
-    # 每天上午6点执行 (UTC+8 台湾时间)
-    - cron: '0 22 * * *'  # UTC是22:00，也就是台湾时间09:00
+        - cron: '0 22 * * *'  # UTC是22:00，也就是台湾时间09:00
     workflow_dispatch:  # 允许手动触发
 
 jobs:
