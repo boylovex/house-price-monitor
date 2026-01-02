@@ -23,7 +23,7 @@ jobs:
 
       - name: 📆 安装依赖
         run: |
-npm install && npx playwright install chromium
+          npm install && npx playwright install chromium
       - name: 🖾️ 粗取数据
         run: node scripts/fetch-listings.js
         continue-on-error: true
